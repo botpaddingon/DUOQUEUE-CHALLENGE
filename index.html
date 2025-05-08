@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Duo Queue Challenge</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Duo Queue Challenge</h1>
+    <p class="subtitle">Classement horaire – accessible à tous</p>
+  </header>
+
+  <main>
+    <table id="ranking">
+      <thead>
+        <tr>
+          <th>Équipe</th>
+          <th>Games</th>
+          <th>Wins</th>
+          <th>Defeats</th>
+          <th>Winrate</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 Duo Queue Challenge</p>
+  </footer>
+
+  <script>
+    async function loadStats() {
+      const res = await fetch('stats.json');
+      const data = await res.json();
+      const sorted = Object.entries(data).sort((a, b) => b[1].winrate - a[1].winrate);
+      const tbody = document.querySelector('#ranking tbody');
+      tbody.innerHTML = '';
+      sorted.forEach(([team, stats]) => {
+        const losses = stats.games - stats.wins;
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${team}</td>
+          <td>${stats.games}</td>
+          <td>${stats.wins}</td>
+          <td>${losses}</td>
+          <td>${stats.winrate.toFixed(1)}%</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+    loadStats();
+    setInterval(loadStats, 5 * 60 * 1000);
+  </script>
+</body>
+</html>

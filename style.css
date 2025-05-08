@@ -1,0 +1,53 @@
+/* Police Orbitron */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: linear-gradient(135deg, #0f0f1a, #1a1a2e);
+  color: #eee;
+  font-family: 'Orbitron', sans-serif;
+  text-align: center;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+header {
+  padding: 2rem 0;
+  text-shadow: 0 0 8px #00f2ff;
+}
+.subtitle {
+  font-size: 1rem;
+  color: #bbb;
+  margin-top: 0.5rem;
+}
+main {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 1rem;
+}
+table {
+  width: 90%;
+  max-width: 800px;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+th, td {
+  padding: 0.75rem 1rem;
+  border: 1px solid #333;
+}
+th {
+  background: #222;
+}
+tr:nth-child(even) {
+  background: #1a1a2e;
+}
+tr:hover {
+  background: #27293d;
+}
+footer {
+  padding: 1rem 0;
+  font-size: 0.8rem;
+  color: #777;
+}
