@@ -1,16 +1,14 @@
 name: Sync Riot Stats
 
-# Cron hourly + bouton manuel
+# Scheduled every hour + manuel
 on:
   schedule:
     - cron: '0 * * * *'
   workflow_dispatch:
 
-# Autoriser l’écriture dans le repo
 permissions:
   contents: write
 
-# Injection globale de la clé Riot
 env:
   RIOT_API_KEY: ${{ secrets.RIOT_API_KEY }}
 
@@ -19,41 +17,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) Checkout avec credentials pour le push
-      - name: Checkout code
+      # 1) Récupérer le code et garder le token pour le push
+      - name: Checkout
         uses: actions/checkout@v3
         with:
           persist-credentials: true
           fetch-depth: 0
 
-      # 2) Installer Python + requests
-      - name: Setup Python & deps
+      # 2) Installer Python et requests
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
-      - run: pip install requests
+      - name: Install requests
+        run: pip install requests
 
-      # 3) Test rapide de l’API Summoner-V4
-      - name: Test API Key on Summoner-V4
-        run: |
-          echo "→ Testing Summoner-V4 endpoint with 'Frog biceps'..."
-          python - << 'EOF'
-import os, requests
-from urllib.parse import quote
-key = os.environ['RIOT_API_KEY']
-name = quote("Frog biceps", safe='')
-url = f"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-name/{name}"
-r = requests.get(url, headers={'X-Riot-Token': key})
-print("Status:", r.status_code)
-if not r.ok: print(r.text)
-EOF
-
-      # 4) Lancer ton script de mise à jour
+      # 3) Lancer la mise à jour des stats
       - name: Run update_stats.py
         run: python update_stats.py
 
-      # 5) Commit & push stats.json si changement
-      - name: Commit & push stats.json if changed
+      # 4) Commit & push stats.json si modifié
+      - name: Commit & push stats.json
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
@@ -65,3 +49,5 @@ EOF
             git commit -m "Auto-sync Riot stats"
             git push
           fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
