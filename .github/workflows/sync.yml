@@ -1,51 +1,67 @@
 name: Sync Riot Stats
 
-# Cron toutes les heures + bouton manuel
+# Cron hourly + bouton manuel
 on:
   schedule:
     - cron: '0 * * * *'
   workflow_dispatch:
 
-# Autorise l’écriture dans le repo
+# Autoriser l’écriture dans le repo
 permissions:
   contents: write
+
+# Injection globale de la clé Riot
+env:
+  RIOT_API_KEY: ${{ secrets.RIOT_API_KEY }}
 
 jobs:
   sync:
     runs-on: ubuntu-latest
 
     steps:
+      # 1) Checkout avec credentials pour le push
       - name: Checkout code
         uses: actions/checkout@v3
         with:
           persist-credentials: true
           fetch-depth: 0
 
-      - name: Setup Python
+      # 2) Installer Python + requests
+      - name: Setup Python & deps
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
+      - run: pip install requests
 
-      - name: Install dependencies
-        run: pip install requests
+      # 3) Test rapide de l’API Summoner-V4
+      - name: Test API Key on Summoner-V4
+        run: |
+          echo "→ Testing Summoner-V4 endpoint with 'Frog biceps'..."
+          python - << 'EOF'
+import os, requests
+from urllib.parse import quote
+key = os.environ['RIOT_API_KEY']
+name = quote("Frog biceps", safe='')
+url = f"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-name/{name}"
+r = requests.get(url, headers={'X-Riot-Token': key})
+print("Status:", r.status_code)
+if not r.ok: print(r.text)
+EOF
 
-      - name: Run update script
-        env:
-          RIOT_API_KEY: ${{ secrets.RIOT_API_KEY }}
+      # 4) Lancer ton script de mise à jour
+      - name: Run update_stats.py
         run: python update_stats.py
 
+      # 5) Commit & push stats.json si changement
       - name: Commit & push stats.json if changed
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "actions@github.com"
           git add stats.json
-          # Si pas de diff, on sort sans erreur
           if git diff --cached --quiet; then
             echo "✅ No changes to commit"
           else
             git commit -m "Auto-sync Riot stats"
             git push
           fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
