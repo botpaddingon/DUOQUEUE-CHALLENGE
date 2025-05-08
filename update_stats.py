@@ -2,20 +2,34 @@ import os
 import requests
 import json
 import time
+from urllib.parse import quote
 
+# Clé Riot stockée dans le secret Actions RIOT_API_KEY
 API_KEY  = os.environ['RIOT_API_KEY']
-PLATFORM = 'euw1'    # pour Summoner-V4
-REGION   = 'europe'  # pour Match-V5
+# Plate-forme pour Summoner-V4
+PLATFORM = 'euw1'
+# Région pour Match-V5
+REGION   = 'europe'
 
+# Tes équipes : Riot-ID = "SummonerName#TAG"
 PLAYERS = {
     "Team Octave": ["KIFFEUR2BALTROUS#SLURP", "kawakino#51928"],
-    "Team Justin": ["cra feu 200#HELMI", "Last Dance#ZAC"],
-    "Team Dylan":  ["Frog biceps#CMOI", "lecheur2pied#39810"]
+    "Team Justin": ["cra feu 200#HELMI",      "Last Dance#ZAC"],
+    "Team Dylan":  ["Frog biceps#CMOI",       "lecheur2pied#39810"]
 }
 
 def get_puuid(riot_id: str) -> str | None:
-    summoner_name = riot_id.split('#')[0]
-    url = f'https://{PLATFORM}.api.riotgames.com/lol/summoner/v4/summoners/by-name/{summoner_name}'
+    """
+    Récupère le puuid à partir du Riot-ID (Name#Tag),
+    en URL-encodant correctement Name et Tag pour éviter les 403.
+    """
+    name, tag = riot_id.split('#', 1)
+    name_enc = quote(name, safe='')
+    tag_enc  = quote(tag,  safe='')
+    url = (
+        f'https://{PLATFORM}.api.riotgames.com'
+        f'/riot/account/v1/accounts/by-riot-id/{name_enc}/{tag_enc}'
+    )
     r = requests.get(url, headers={'X-Riot-Token': API_KEY})
     if not r.ok:
         print(f"[PUUID ERROR] {riot_id} → {r.status_code}")
@@ -23,7 +37,11 @@ def get_puuid(riot_id: str) -> str | None:
     return r.json().get('puuid')
 
 def get_match_ids(puuid: str) -> list[str]:
-    url = f'https://{REGION}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?type=ranked&start=0&count=20'
+    url = (
+        f'https://{REGION}.api.riotgames.com'
+        f'/lol/match/v5/matches/by-puuid/{puuid}'
+        f'/ids?type=ranked&start=0&count=20'
+    )
     r = requests.get(url, headers={'X-Riot-Token': API_KEY})
     if not r.ok:
         print(f"[MATCHLIST ERROR] {puuid} → {r.status_code}")
@@ -39,50 +57,59 @@ def get_match_detail(match_id: str) -> dict | None:
     return r.json()
 
 def main():
-    # 1) récupérer tous les puuids
-    puuids = {}
-    for team, ids in PLAYERS.items():
+    # 1) Récupérer tous les PUUIDs
+    puuids: dict[str,str] = {}
+    for ids in PLAYERS.values():
         for rid in ids:
             puuid = get_puuid(rid)
             if puuid:
                 puuids[rid] = puuid
-            time.sleep(1.3)
+            time.sleep(1.2)
 
-    # 2) init stats
-    stats = {team: {'players': ids, 'games':0, 'wins':0, 'losses':0} for team, ids in PLAYERS.items()}
+    # 2) Initialiser les stats
+    stats = {
+        team: {'players': ids, 'games': 0, 'wins': 0, 'losses': 0}
+        for team, ids in PLAYERS.items()
+    }
 
-    # 3) parcourir les matches duo
+    # 3) Pour chaque équipe, analyser les matchs Solo/Duo
     for team, ids in PLAYERS.items():
-        p1, p2 = ids
-        pu1, pu2 = puuids.get(p1), puuids.get(p2)
+        rid1, rid2 = ids
+        pu1 = puuids.get(rid1)
+        pu2 = puuids.get(rid2)
         if not pu1 or not pu2:
             continue
 
-        for mid in get_match_ids(pu1):
-            detail = get_match_detail(mid)
+        for match_id in get_match_ids(pu1):
+            detail = get_match_detail(match_id)
             if not detail:
                 continue
+
             info = detail['info']
-            if info.get('queueId') != 420:  # Solo/Duo ranked
+            # Solo/Duo Ranked → queueId 420
+            if info.get('queueId') != 420:
                 continue
 
             parts = info['participants']
-            d1 = next((p for p in parts if p['puuid']==pu1), None)
-            d2 = next((p for p in parts if p['puuid']==pu2), None)
-            if not d1 or not d2 or d1['teamId']!=d2['teamId']:
+            p1 = next((p for p in parts if p['puuid'] == pu1), None)
+            p2 = next((p for p in parts if p['puuid'] == pu2), None)
+            if not p1 or not p2 or p1['teamId'] != p2['teamId']:
                 continue
 
             stats[team]['games'] += 1
-            if d1['win']:
+            if p1['win']:
                 stats[team]['wins'] += 1
             else:
                 stats[team]['losses'] += 1
 
             time.sleep(1.2)
 
-    # 4) calcul winrate + dump JSON
+    # 4) Calculer le winrate et exporter JSON
     out = {
-        team: {**v, 'winrate': round((v['wins']/v['games']*100) if v['games'] else 0,1)}
+        team: {
+            **v,
+            'winrate': round((v['wins'] / v['games'] * 100) if v['games'] else 0, 1)
+        }
         for team, v in stats.items()
     }
     with open('stats.json', 'w', encoding='utf-8') as f:
