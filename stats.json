@@ -1,20 +1,32 @@
 {
   "Team Octave": {
-    "players": ["KIFFEUR2BALTROUS#SLURP", "kawakino#51928"],
-    "games": 18,
-    "wins": 13,
-    "winrate": 72.2
+    "players": [
+      "KIFFEUR2BALTROUS#SLURP",
+      "kawakino#51928"
+    ],
+    "games": 0,
+    "wins": 0,
+    "losses": 0,
+    "winrate": 0
   },
   "Team Justin": {
-    "players": ["cra feu 200#HELM", "Last Dance#ZAC"],
-    "games": 20,
-    "wins": 12,
-    "winrate": 60.0
+    "players": [
+      "cra feu 200#HELM",
+      "Last Dance#ZAC"
+    ],
+    "games": 0,
+    "wins": 0,
+    "losses": 0,
+    "winrate": 0
   },
   "Team Dylan": {
-    "players": ["Frog biceps#CMOI", "lecheur2pied#39810"],
-    "games": 14,
-    "wins": 6,
-    "winrate": 42.9
+    "players": [
+      "Frog biceps#CMOI",
+      "lecheur2pied#39810"
+    ],
+    "games": 0,
+    "wins": 0,
+    "losses": 0,
+    "winrate": 0
   }
 }
