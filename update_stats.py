@@ -4,66 +4,66 @@ import json
 import time
 from urllib.parse import quote
 
-# Clé Riot stockée dans le secret Actions RIOT_API_KEY
+# Ta clé Riot stockée dans les Secrets GitHub Actions
 API_KEY  = os.environ['RIOT_API_KEY']
-# Plate-forme pour Summoner-V4
+# Plate-forme (pour Summoner-V4)
 PLATFORM = 'euw1'
-# Région pour Match-V5
+# Région (pour Match-V5)
 REGION   = 'europe'
 
-# Tes équipes : Riot-ID = "SummonerName#TAG"
+# Tes équipes : Riot-ID = "SummonerName#Tag"
 PLAYERS = {
     "Team Octave": ["KIFFEUR2BALTROUS#SLURP", "kawakino#51928"],
-    "Team Justin": ["cra feu 200#HELMI",      "Last Dance#ZAC"],
-    "Team Dylan":  ["Frog biceps#CMOI",       "lecheur2pied#39810"]
+    "Team Justin": ["cra feu 200#HELMI",     "Last Dance#ZAC"],
+    "Team Dylan":  ["Frog biceps#CMOI",      "lecheur2pied#39810"]
 }
 
 def get_puuid(riot_id: str) -> str | None:
     """
-    Récupère le puuid à partir du Riot-ID (Name#Tag),
-    en URL-encodant correctement Name et Tag pour éviter les 403.
+    Récupère le puuid à partir du Riot-ID en utilisant Summoner-V4 par nom.
+    On prend la partie avant '#' comme summonerName, on l'URL-encode,
+    et on appelle /lol/summoner/v4/summoners/by-name/{nameEnc}.
     """
-    name, tag = riot_id.split('#', 1)
-    name_enc = quote(name, safe='')
-    tag_enc  = quote(tag,  safe='')
+    summoner_name = riot_id.split('#', 1)[0]
+    name_enc = quote(summoner_name, safe='')
     url = (
         f'https://{PLATFORM}.api.riotgames.com'
-        f'/riot/account/v1/accounts/by-riot-id/{name_enc}/{tag_enc}'
+        f'/lol/summoner/v4/summoners/by-name/{name_enc}'
     )
-    r = requests.get(url, headers={'X-Riot-Token': API_KEY})
-    if not r.ok:
-        print(f"[PUUID ERROR] {riot_id} → {r.status_code}")
+    res = requests.get(url, headers={'X-Riot-Token': API_KEY})
+    if not res.ok:
+        print(f"[PUUID ERROR] {riot_id} → {res.status_code}")
         return None
-    return r.json().get('puuid')
+    return res.json().get('puuid')
 
 def get_match_ids(puuid: str) -> list[str]:
     url = (
         f'https://{REGION}.api.riotgames.com'
-        f'/lol/match/v5/matches/by-puuid/{puuid}'
-        f'/ids?type=ranked&start=0&count=20'
+        f'/lol/match/v5/matches/by-puuid/{puuid}/ids'
+        f'?type=ranked&start=0&count=20'
     )
-    r = requests.get(url, headers={'X-Riot-Token': API_KEY})
-    if not r.ok:
-        print(f"[MATCHLIST ERROR] {puuid} → {r.status_code}")
+    res = requests.get(url, headers={'X-Riot-Token': API_KEY})
+    if not res.ok:
+        print(f"[MATCHLIST ERROR] {puuid} → {res.status_code}")
         return []
-    return r.json()
+    return res.json()
 
 def get_match_detail(match_id: str) -> dict | None:
     url = f'https://{REGION}.api.riotgames.com/lol/match/v5/matches/{match_id}'
-    r = requests.get(url, headers={'X-Riot-Token': API_KEY})
-    if not r.ok:
-        print(f"[MATCHDETAIL ERROR] {match_id} → {r.status_code}")
+    res = requests.get(url, headers={'X-Riot-Token': API_KEY})
+    if not res.ok:
+        print(f"[MATCHDETAIL ERROR] {match_id} → {res.status_code}")
         return None
-    return r.json()
+    return res.json()
 
 def main():
-    # 1) Récupérer tous les PUUIDs
+    # 1) Récupérer les PUUIDs
     puuids: dict[str,str] = {}
     for ids in PLAYERS.values():
-        for rid in ids:
-            puuid = get_puuid(rid)
+        for riot_id in ids:
+            puuid = get_puuid(riot_id)
             if puuid:
-                puuids[rid] = puuid
+                puuids[riot_id] = puuid
             time.sleep(1.2)
 
     # 2) Initialiser les stats
@@ -72,16 +72,15 @@ def main():
         for team, ids in PLAYERS.items()
     }
 
-    # 3) Pour chaque équipe, analyser les matchs Solo/Duo
+    # 3) Parcourir chaque duo
     for team, ids in PLAYERS.items():
-        rid1, rid2 = ids
-        pu1 = puuids.get(rid1)
-        pu2 = puuids.get(rid2)
+        id1, id2 = ids
+        pu1, pu2 = puuids.get(id1), puuids.get(id2)
         if not pu1 or not pu2:
             continue
 
-        for match_id in get_match_ids(pu1):
-            detail = get_match_detail(match_id)
+        for mid in get_match_ids(pu1):
+            detail = get_match_detail(mid)
             if not detail:
                 continue
 
