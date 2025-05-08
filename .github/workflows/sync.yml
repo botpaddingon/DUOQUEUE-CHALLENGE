@@ -1,18 +1,26 @@
 name: Sync Riot Stats
 
-# Déclenchement manuel et toutes les heures
+# on schedule hourly + manual dispatch
 on:
   schedule:
-    - cron: '0 * * * *'      # toutes les heures
-  workflow_dispatch:       # bouton “Run workflow” dans l’UI
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+# On donne explicitement le droit d'écrire dans le repo
+permissions:
+  contents: write
 
 jobs:
   sync:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) Récupérer le code
-      - uses: actions/checkout@v3
+      # 1) Checkout avec les credentials du GITHUB_TOKEN (persist-credentials à true)
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: true  # important pour permettre le push
+          fetch-depth: 0             # full history si besoin pour git push
 
       # 2) Installer Python
       - name: Setup Python
@@ -24,13 +32,13 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      # 4) Lancer le script de mise à jour
+      # 4) Lancer le script de synchronisation
       - name: Run update script
         env:
           RIOT_API_KEY: ${{ secrets.RIOT_API_KEY }}
         run: python update_stats.py
 
-      # 5) Commit & push du nouveau stats.json
+      # 5) Commit & push des modifications de stats.json
       - name: Commit & push stats.json
         run: |
           git config user.name "github-actions[bot]"
